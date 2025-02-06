@@ -1,21 +1,22 @@
-import { BaseEntity, Column, PrimaryGeneratedColumn } from "typeorm";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
-export class Url extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+@Schema()
+export class Url extends Document {
+  @Prop({ required: true })
+  longUrl: string;
 
-    @Column()
-    longUrl: string;
-  
-    @Column({ nullable: true })
-    customAlias: string;
-  
-    @Column({ nullable: true })
-    topic: string;
-  
-    @Column()
-    shortUrl: string;
-  
-    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-    createdAt: Date;
+  @Prop({ unique: true })
+  shortUrl: string;
+
+  @Prop({ required: true })
+  createdAt: Date;
+
+  @Prop({ unique: true, required: true }) 
+  alias: string;
+
+  @Prop()
+  topic?: string;
 }
+
+export const UrlSchema = SchemaFactory.createForClass(Url);

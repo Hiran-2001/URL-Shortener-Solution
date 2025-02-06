@@ -1,33 +1,28 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-// import { AuthModule } from './auth/auth.module';
-// import { UrlModule } from './url/url.module';
-import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { GoogleAuthModule } from './google-auth/google-auth.module';
-import { AnalyicsModule } from './analyics/analyics.module';
+import { AnalyticsModule } from './analyics/analytics.module';
 import { UrlModule } from './url/url.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { RateLimiterModule } from 'nestjs-rate-limiter';
+import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      username: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      synchronize: true, // Disable in production
+    ConfigModule.forRoot({
+      isGlobal:true,
+      envFilePath:'.env'
     }),
-    UserModule,
+    MongooseModule.forRoot(process.env.MONGO_URI),
+    RateLimiterModule.register({
+      points: 10, // 10 requests
+      duration: 60, // per minute
+    }),
     AuthModule,
-    GoogleAuthModule,
-    AnalyicsModule,
     UrlModule,
-    // UrlModule,
+    AnalyticsModule,
+    RedisModule
   ],
 })
 export class AppModule {}

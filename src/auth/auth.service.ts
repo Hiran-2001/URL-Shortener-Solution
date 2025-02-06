@@ -1,26 +1,57 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Auth } from './entities/auth.entity';
+import { Model } from 'mongoose';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
+  constructor(
+    @InjectModel(Auth.name) private userModel: Model<Auth>,
+    private readonly jwtService: JwtService,
+  ) { }
+
+  async validateOrCreateUser(profile: any): Promise<Auth> {
+    try {
+      if (!profile || !profile.emails || !profile.emails.length) {
+        throw new Error('Invalid profile data');
+      }
+
+      const { id, displayName, emails } = profile;
+      const email = emails[0].value;
+
+      let user = await this.findByEmail(email);
+
+      if (!user) {
+        user = await this.create({
+          googleId: id,
+          name: displayName,
+          email,
+        });
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Error in validateOrCreateUser:', error);
+      throw error;
+    }
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  async login(user: any) {
+    const payload = { sub: user._id, email: user.email };
+    return {
+      accessToken: this.jwtService.sign(payload),
+      user,
+    };
+  }
+  async findByEmail(email: string): Promise<Auth | null> {
+    return this.userModel.findOne({ email }).exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
-
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+  async create(userData: Partial<Auth>): Promise<Auth> {
+    const user = new this.userModel(userData);
+    return user.save();
   }
 }
