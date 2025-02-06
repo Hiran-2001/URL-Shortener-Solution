@@ -35,21 +35,21 @@ jobs:
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env 
 
-      - name: Deploy to EC2
-       uses: appleboy/ssh-action@master
-       with:
-         host: ${{ secrets.EC2_HOST }}
-         username: ubuntu
-         key: ${{ secrets.EC2_SSH_KEY }}
-         script: |
-           cd /home/ubuntu/URL-Shortener-Solution
-           git pull origin master
-           npm install
-           npm run build
-           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
-           echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-           echo "GOOGLE_REDIRECT_URL=${{ secrets.GOOGLE_REDIRECT_URL }}" >> .env
-           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
-           pm2 delete url-shortener || true
-           pm2 start dist/main.js --name "url-shortener"    
+      - name: Deploy to Server (example for EC2)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/URL-Shortener-Solution
+            git pull origin master
+            npm install
+            npm run build
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+            echo "GOOGLE_REDIRECT_URL=${{ secrets.GOOGLE_REDIRECT_URL }}" >> .env
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+            pm2 delete url-shortener || true
+            pm2 start dist/main.js --name "url-shortener"          
