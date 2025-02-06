@@ -17,8 +17,7 @@ export class AnalyticsService {
 
   async trackVisit(urlId: any, req: Request) {
     try {
-      // const ipAddress = this.getIPAddress(req);
-      const ipAddress = '3.26.210.70';
+      const ipAddress = this.getIPAddress(req) || '3.26.210.70' ;
       console.log("IP Address:", ipAddress);
 
       const geo = geoip.lookup(ipAddress);
