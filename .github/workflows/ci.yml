@@ -36,6 +36,7 @@ jobs:
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env 
 
       - name: Deploy to Server (example for EC2)
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }} 
           username: ubuntu 
