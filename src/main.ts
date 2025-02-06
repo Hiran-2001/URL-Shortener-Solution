@@ -4,7 +4,9 @@ import * as useragent from 'express-useragent';
 import { Request } from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule,{
+    logger:['log', 'error', 'warn', 'debug', 'verbose']
+  });
 
   app.use(useragent.express()); // Apply the middleware *globally*
 
@@ -12,7 +14,7 @@ async function bootstrap() {
   app.use((req: Request, res: any, next: any) => {
     next();
   });
-  await app.listen(5000);
+  await app.listen(5000, '0.0.0.0');
   console.log('Server running or port 5000');
   
 }
