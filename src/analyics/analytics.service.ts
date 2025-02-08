@@ -1,5 +1,5 @@
 // analytics.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAnalyicDto } from './dto/create-analytic.dto';
 import { UpdateAnalyicDto } from './dto/update-analytic.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -8,12 +8,238 @@ import { Model } from 'mongoose';
 import * as useragent from 'express-useragent';
 import * as geoip from 'geoip-lite';
 import { Request } from 'express';
+import { Url } from 'src/url/entities/url.entity';
+import * as moment from 'moment';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
-    @InjectModel(Analytics.name) private analyticsModel: Model<Analytics>
+    @InjectModel(Analytics.name) private analyticsModel: Model<Analytics>,
+    @InjectModel(Url.name) private urlModel: Model<Url>
   ) { }
+
+
+  async getUrlAnalytics(alias: string) {
+    const url = await this.urlModel.findOne({ alias });
+    if (!url) {
+      throw new NotFoundException('URL not found');
+    }
+
+    const analytics = await this.analyticsModel.find({ url: url._id });
+    const sevenDaysAgo = moment().subtract(7, 'days').startOf('day');
+    
+
+    // Calculate basic metrics
+    const totalClicks = analytics.length;
+    const uniqueUsers = new Set(analytics.map(a => a.ipAddress)).size;
+
+    const clicksByDate = await this.analyticsModel.aggregate([
+      {
+        $match: {
+          url: url._id.toString(),
+          timestamp: { $gte: sevenDaysAgo.toDate() }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+    console.log(clicksByDate,"clickByDate");
+    
+
+    // // Calculate OS statistics
+    const osStats = await (await this.analyticsModel.aggregate([
+      {
+        $match: { url: url._id.toString() }
+      },
+      {
+        $group: {
+          _id: "$userAgent.os",
+          uniqueClicks: { $sum: 1 },
+          uniqueUsers: { $addToSet: "$ipAddress" }
+        }
+      }
+    ])).map(stat => ({
+      osName: stat._id || 'Unknown',
+      uniqueClicks: stat.uniqueClicks,
+      uniqueUsers: stat.uniqueUsers.length
+    }));
+
+
+    const deviceStats = await (await this.analyticsModel.aggregate([
+      {
+        $match: { url: url._id.toString() }
+      },
+      {
+        $addFields: {
+          deviceType: {
+            $cond: {
+              if: { $regexMatch: { input: "$userAgent.source", regex: /mobile|android|iphone/i } },
+              then: "mobile",
+              else: "desktop"
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$deviceType",
+          uniqueClicks: { $sum: 1 },
+          uniqueUsers: { $addToSet: "$ipAddress" }
+        }
+      }
+    ])).map(stat => ({
+      deviceName: stat._id,
+      uniqueClicks: stat.uniqueClicks,
+      uniqueUsers: stat.uniqueUsers.length
+    }));
+
+    // console.log(deviceStats,"deviceStats");
+
+
+    return {
+      totalClicks,
+      uniqueUsers,
+      clicksByDate,
+      osType: osStats,
+      deviceType: deviceStats
+    };
+  }
+
+
+
+  async getTopicAnalytics(topic: string) {
+    const urls = await this.urlModel.find({ topic });
+    const urlIds = urls.map(url => url._id.toString());
+
+    console.log(urlIds,"idssssss");
+    
+    
+
+    const analytics = await this.analyticsModel.find({ url: { $in: urlIds } });
+    const totalClicks = analytics.length;
+    const uniqueUsers = new Set(analytics.map(a => a.ipAddress)).size;
+
+    // Calculate clicks by date
+    const clicksByDate = await this.analyticsModel.aggregate([
+      {
+        $match: { url: { $in: urlIds } }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    // Get per-URL statistics
+    const urlStats = await Promise.all(urls.map(async url => {
+      const urlAnalytics = analytics.filter(a => a.url.toString() === url._id.toString());
+      return {
+        shortUrl: url.shortUrl,
+        totalClicks: urlAnalytics.length,
+        uniqueUsers: new Set(urlAnalytics.map(a => a.ipAddress)).size
+      };
+    }));
+
+    return {
+      totalClicks,
+      uniqueUsers,
+      clicksByDate,
+      urls: urlStats
+    };
+  }
+
+  async getOverallAnalytics() {
+    console.log("in overall analytics");
+    
+    const analytics = await this.analyticsModel.find();
+    const totalUrls = await this.urlModel.countDocuments();
+    const totalClicks = analytics.length;
+    const uniqueUsers = new Set(analytics.map(a => a.ipAddress)).size;
+
+    // Calculate clicks by date
+    const clicksByDate = await this.analyticsModel.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    console.log(clicksByDate,"click by date");
+    
+
+    // Calculate OS statistics
+    const osStats = await (await this.analyticsModel.aggregate([
+      {
+        $group: {
+          _id: "$userAgent.os",
+          uniqueClicks: { $sum: 1 },
+          uniqueUsers: { $addToSet: "$ipAddress" }
+        }
+      }
+    ])).map(stat => ({
+      osName: stat._id || 'Unknown',
+      uniqueClicks: stat.uniqueClicks,
+      uniqueUsers: stat.uniqueUsers.length
+    }));
+
+    console.log(osStats,"osStats");
+
+
+    // Calculate device type statistics
+    const deviceStats = await (await this.analyticsModel.aggregate([
+      {
+        $addFields: {
+          deviceType: {
+            $cond: {
+              if: { $regexMatch: { input: "$userAgent.source", regex: /mobile|android|iphone/i } },
+              then: "mobile",
+              else: "desktop"
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$deviceType",
+          uniqueClicks: { $sum: 1 },
+          uniqueUsers: { $addToSet: "$ipAddress" }
+        }
+      }
+    ])).map(stat => ({
+      deviceName: stat._id,
+      uniqueClicks: stat.uniqueClicks,
+      uniqueUsers: stat.uniqueUsers.length
+    }));
+
+    console.log(deviceStats,"device stats");
+
+
+    return {
+      totalUrls,
+      totalClicks,
+      uniqueUsers,
+      clicksByDate,
+      osType: osStats,
+      deviceType: deviceStats
+    };
+  }
 
   async trackVisit(urlId: any, req: Request) {
     try {
@@ -48,7 +274,7 @@ export class AnalyticsService {
         } : null;
 
         const newVisit = new this.analyticsModel({
-          url: urlId,
+          url: urlId.toString(),
           timestamp: new Date(),
           userAgent: userAgent,
           ipAddress,

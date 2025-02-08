@@ -35,7 +35,7 @@ jobs:
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env 
 
-      - name: Deploy to Server (example for EC2)
+      - name: Deploy to Server 
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
