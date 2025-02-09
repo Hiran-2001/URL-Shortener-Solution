@@ -27,7 +27,7 @@ export class UrlService {
       const alias = customAlias || this.generateAlias();
       const url = new this.urlModel({
         longUrl,
-        shortUrl: `http://localhost:5000/api/shorten/${alias}`,
+        shortUrl: `http://54.253.241.58:5000/api/shorten/${alias}`,
         createdAt: new Date(),
         alias: alias,
         topic: topic,
