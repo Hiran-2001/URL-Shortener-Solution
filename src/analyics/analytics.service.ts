@@ -1,5 +1,5 @@
 // analytics.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAnalyicDto } from './dto/create-analytic.dto';
 import { UpdateAnalyicDto } from './dto/update-analytic.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -10,16 +10,25 @@ import * as geoip from 'geoip-lite';
 import { Request } from 'express';
 import { Url } from 'src/url/entities/url.entity';
 import * as moment from 'moment';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectModel(Analytics.name) private analyticsModel: Model<Analytics>,
-    @InjectModel(Url.name) private urlModel: Model<Url>
+    @InjectModel(Url.name) private urlModel: Model<Url>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) { }
 
 
   async getUrlAnalytics(alias: string) {
+    const cacheKey = `analytics:url:${alias}`;
+    const cachedAnalytics = await this.cacheManager.get(cacheKey);
+    if (cachedAnalytics) {      
+      return cachedAnalytics;
+    }
+
     const url = await this.urlModel.findOne({ alias });
     if (!url) {
       throw new NotFoundException('URL not found');
@@ -27,9 +36,8 @@ export class AnalyticsService {
 
     const analytics = await this.analyticsModel.find({ url: url._id });
     const sevenDaysAgo = moment().subtract(7, 'days').startOf('day');
-    
 
-    // Calculate basic metrics
+
     const totalClicks = analytics.length;
     const uniqueUsers = new Set(analytics.map(a => a.ipAddress)).size;
 
@@ -50,10 +58,7 @@ export class AnalyticsService {
         $sort: { _id: 1 }
       }
     ]);
-    console.log(clicksByDate,"clickByDate");
-    
 
-    // // Calculate OS statistics
     const osStats = await (await this.analyticsModel.aggregate([
       {
         $match: { url: url._id.toString() }
@@ -100,33 +105,39 @@ export class AnalyticsService {
       uniqueUsers: stat.uniqueUsers.length
     }));
 
-    // console.log(deviceStats,"deviceStats");
 
 
-    return {
+    const analyticsData = {
       totalClicks,
       uniqueUsers,
       clicksByDate,
       osType: osStats,
       deviceType: deviceStats
     };
+ 
+    await this.cacheManager.set(cacheKey, analyticsData);
+    
+    return analyticsData;
   }
 
 
 
   async getTopicAnalytics(topic: string) {
+    const cacheKey = `analytics:topic:${topic}`;
+    const cachedAnalytics = await this.cacheManager.get(cacheKey);
+    if (cachedAnalytics) {      
+      return cachedAnalytics;
+    }
     const urls = await this.urlModel.find({ topic });
     const urlIds = urls.map(url => url._id.toString());
 
-    console.log(urlIds,"idssssss");
-    
-    
+
+
 
     const analytics = await this.analyticsModel.find({ url: { $in: urlIds } });
     const totalClicks = analytics.length;
     const uniqueUsers = new Set(analytics.map(a => a.ipAddress)).size;
 
-    // Calculate clicks by date
     const clicksByDate = await this.analyticsModel.aggregate([
       {
         $match: { url: { $in: urlIds } }
@@ -142,7 +153,6 @@ export class AnalyticsService {
       }
     ]);
 
-    // Get per-URL statistics
     const urlStats = await Promise.all(urls.map(async url => {
       const urlAnalytics = analytics.filter(a => a.url.toString() === url._id.toString());
       return {
@@ -152,17 +162,24 @@ export class AnalyticsService {
       };
     }));
 
-    return {
+    const analyticsData = {
       totalClicks,
       uniqueUsers,
       clicksByDate,
       urls: urlStats
     };
+    await this.cacheManager.set(cacheKey, analyticsData);
+    
+    return analyticsData;
   }
 
   async getOverallAnalytics() {
-    console.log("in overall analytics");
-    
+    const cacheKey = `analytics:overall`;
+
+    const cachedAnalytics = await this.cacheManager.get(cacheKey);
+    if (cachedAnalytics) {      
+      return cachedAnalytics;
+    }
     const analytics = await this.analyticsModel.find();
     const totalUrls = await this.urlModel.countDocuments();
     const totalClicks = analytics.length;
@@ -181,10 +198,7 @@ export class AnalyticsService {
       }
     ]);
 
-    console.log(clicksByDate,"click by date");
-    
 
-    // Calculate OS statistics
     const osStats = await (await this.analyticsModel.aggregate([
       {
         $group: {
@@ -198,8 +212,6 @@ export class AnalyticsService {
       uniqueClicks: stat.uniqueClicks,
       uniqueUsers: stat.uniqueUsers.length
     }));
-
-    console.log(osStats,"osStats");
 
 
     // Calculate device type statistics
@@ -228,10 +240,9 @@ export class AnalyticsService {
       uniqueUsers: stat.uniqueUsers.length
     }));
 
-    console.log(deviceStats,"device stats");
 
 
-    return {
+    const analyticsData = {
       totalUrls,
       totalClicks,
       uniqueUsers,
@@ -239,27 +250,27 @@ export class AnalyticsService {
       osType: osStats,
       deviceType: deviceStats
     };
+
+    await this.cacheManager.set(cacheKey, analyticsData);
+    
+    return analyticsData;
   }
 
   async trackVisit(urlId: any, req: Request) {
     try {
-      const ipAddress = this.getIPAddress(req) || '3.26.210.70' ;
-      console.log("IP Address:", ipAddress);
+      const ipAddress = this.getIPAddress(req) || '3.26.210.70';
 
       const geo = geoip.lookup(ipAddress);
-      console.log("Geo Location:", geo);
 
-      console.log(req.useragent?.source);
-      
       const geolocation = geo
-      ? {
+        ? {
           country: geo?.country || "Unknown", // Provide default values
           region: geo?.region || "Unknown",
           city: geo?.city || "Unknown",
           latitude: geo?.ll?.[0] || 0,
           longitude: geo?.ll?.[1] || 0,
         }
-      : { // Default geolocation object if geo is null
+        : { // Default geolocation object if geo is null
           country: "Unknown",
           region: "Unknown",
           city: "Unknown",
@@ -267,24 +278,23 @@ export class AnalyticsService {
           longitude: 0,
         };
 
-        const userAgent = req.useragent ? {
-          browser: req.useragent.browser,
-          os: req.useragent.os,
-          source: req.useragent.source,
-        } : null;
+      const userAgent = req.useragent ? {
+        browser: req.useragent.browser,
+        os: req.useragent.os,
+        source: req.useragent.source,
+      } : null;
 
-        const newVisit = new this.analyticsModel({
-          url: urlId.toString(),
-          timestamp: new Date(),
-          userAgent: userAgent,
-          ipAddress,
-          geolocation,
-        });
+      const newVisit = new this.analyticsModel({
+        url: urlId.toString(),
+        timestamp: new Date(),
+        userAgent: userAgent,
+        ipAddress,
+        geolocation,
+      });
 
-        const savedVisit = await newVisit.save();
-        console.log("Saved Visit:", savedVisit);
-  
-        return savedVisit;
+      const savedVisit = await newVisit.save();
+
+      return savedVisit;
     } catch (error) {
       console.error('Error tracking visit:', error);
       return null;

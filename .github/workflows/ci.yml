@@ -34,6 +34,8 @@ jobs:
           echo "GOOGLE_REDIRECT_URL=${{ secrets.GOOGLE_REDIRECT_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env 
+          echo "REDIS_HOST=redis" >> .env
+          echo "REDIS_PORT=6379" >> .env
 
       - name: Deploy to Server 
         uses: appleboy/ssh-action@master
@@ -51,5 +53,13 @@ jobs:
             echo "GOOGLE_REDIRECT_URL=${{ secrets.GOOGLE_REDIRECT_URL }}" >> .env
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
-            pm2 delete url-shortener || true
-            pm2 start dist/main.js --name "url-shortener"          
+            echo "REDIS_HOST=redis" >> .env
+            echo "REDIS_PORT=6379" >> .env
+
+            docker-compose down
+
+            docker-compose pull
+
+            docker-compose up -d --build
+
+            docker system prune -f          

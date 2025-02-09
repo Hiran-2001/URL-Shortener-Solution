@@ -34,8 +34,7 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      console.error('Error in validateOrCreateUser:', error);
-      throw error;
+     throw error;
     }
   }
 

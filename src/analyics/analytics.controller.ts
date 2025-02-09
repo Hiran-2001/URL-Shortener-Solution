@@ -11,7 +11,6 @@ export class AnalyicsController {
   async getUrlAnalytics(@Param('alias') alias: string) {
     try {
       return await this.analyticsService.getUrlAnalytics(alias);
-      // console.log(alias,"alias");
       
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -24,7 +23,6 @@ export class AnalyicsController {
   @Get('analytics/topic/:topic')
   async getTopicAnalytics(@Param('topic') topic: string) {
     try {
-      // console.log(topic,"topic");
       
       return await this.analyticsService.getTopicAnalytics(topic);
     } catch (error) {

@@ -8,9 +8,8 @@ async function bootstrap() {
     logger:['log', 'error', 'warn', 'debug', 'verbose']
   });
 
-  app.use(useragent.express()); // Apply the middleware *globally*
+  app.use(useragent.express()); 
 
-  // Optional: Debugging middleware (remove in production)
   app.use((req: Request, res: any, next: any) => {
     next();
   });

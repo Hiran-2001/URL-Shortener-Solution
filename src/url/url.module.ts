@@ -6,11 +6,12 @@ import { Url, UrlSchema } from './entities/url.entity';
 import { Analytics, AnalyticsSchema } from 'src/analyics/entities/analytic.entity';
 import { AnalyticsService } from 'src/analyics/analytics.service';
 import { AnalyticsModule } from 'src/analyics/analytics.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
     AnalyticsModule,
-    MongooseModule.forFeature([{ name: Url.name, schema: UrlSchema }, { name: Analytics.name, schema:AnalyticsSchema  },]), // Registering the model
+    MongooseModule.forFeature([{ name: Url.name, schema: UrlSchema }, { name: Analytics.name, schema:AnalyticsSchema  },]), 
   ],
   controllers: [UrlController],
   providers: [UrlService,AnalyticsService],

@@ -1,31 +1,25 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Hiran@2001
-      POSTGRES_DB: url_shortener
-    ports:
-      - "5432:5432"
-    networks:
-      - urlshortener-network
-
   redis:
     image: redis:alpine
+    container_name: redis
     ports:
       - "6379:6379"
     networks:
       - urlshortener-network
+    command: redis-server --requirepass redispassword
 
   app:
     build: .
+    container_name: url-shortener
+    restart: always
     depends_on:
-      - postgres
       - redis
+    env_file:
+      - /home/ubuntu/URL-Shortener-Solution/.env
     ports:
-      - "3000:3000"
+      - "5000:5000"
     networks:
       - urlshortener-network
 

@@ -3,6 +3,7 @@ import { UrlService } from './url.service';
 import { CreateUrlDto } from './dto/create-url.dto';
 import { AnalyticsService } from 'src/analyics/analytics.service';
 import { Response, Request } from 'express';
+import { Url } from './entities/url.entity';
 
 
 @Controller('api')
@@ -31,14 +32,13 @@ export class UrlController {
   ){
     try {
       
-      const url = await this.urlService.findByAlias(alias);      
+      const url = await this.urlService.findByAlias(alias);  
+          
       this.analyticsService.trackVisit(url._id, req).catch(err => {
         console.error('Failed to track visit:', err);
       });
       return res.redirect(301, url.longUrl);
-    } catch (error) {
-      console.log(error);
-      
+    } catch (error) {      
       if (error instanceof NotFoundException) {
         return res.status(404).send({ message: 'URL not found' });
       } else {

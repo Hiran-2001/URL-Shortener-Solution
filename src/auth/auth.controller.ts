@@ -9,7 +9,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Get('google')
-  @UseGuards(AuthGuard('google')) // ✅ Re-enable this
+  @UseGuards(AuthGuard('google')) 
   async googleAuth() {
     return { message: 'Redirecting to Google authentication' };
   }
