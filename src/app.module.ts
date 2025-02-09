@@ -19,6 +19,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     RateLimiterModule.register({
       points: 10,
       duration: 60,
+      execEvenly: false, // Ensure instant blocking after limit is reached
+  keyPrefix: 'rate_limit',
     }),
     AuthModule,
     UrlModule,

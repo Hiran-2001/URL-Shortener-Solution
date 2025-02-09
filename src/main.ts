@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as useragent from 'express-useragent';
 import { Request } from 'express';
+import { RateLimiterInterceptor } from './common/interceptors/rate-limit-interceptors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule,{
@@ -9,6 +10,9 @@ async function bootstrap() {
   });
 
   app.use(useragent.express()); 
+
+  app.useGlobalInterceptors(new RateLimiterInterceptor());
+
 
   app.use((req: Request, res: any, next: any) => {
     next();

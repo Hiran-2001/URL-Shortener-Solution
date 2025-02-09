@@ -176,9 +176,8 @@ export class AnalyticsService {
   async getOverallAnalytics() {
     const cacheKey = `analytics:overall`;
 
-    const cachedAnalytics = await this.cacheManager.get(cacheKey);
-    if (cachedAnalytics) {      
-      return cachedAnalytics;
+    if (await this.cacheManager.get(cacheKey)) {
+      return await this.analyticsModel.find();
     }
     const analytics = await this.analyticsModel.find();
     const totalUrls = await this.urlModel.countDocuments();
