@@ -385,7 +385,7 @@ $ docker run -p 5000:5000 --env-file .env url-shortener-api
 <h2>🧪 Testing the Deployed API</h2>
 <p>
   The API is currently deployed on Amazon EC2 and can be accessed at:
-  <code>http://54.253.241.58:5000/api/</code>
+  <code>http://your-ip:5000/api/</code>
 </p>
 </code></pre>
 
